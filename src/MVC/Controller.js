@@ -41,44 +41,52 @@ export class Controller {
     assignNeighbours() {
         if (this.controlledModels.length !== 0) {
             for (let i = 0; i < this.controlledModels.length; i++) {
-                this.cast(MessageType.assignNeighbour,  this.controlledModels[((i + 1) % this.controlledModels.length)].name, [this.controlledModels[i]])
+               let neighbour = this.controlledModels[((i + 1) % this.controlledModels.length)]
+                const signature = CryptoUtil.GenerateSignature(neighbour.publicKey, this.#privateKey)
+                this.controlledModels[i].setNeighbour(neighbour, signature,this.publicKey)
             }
         }
     }
 
-    cast(type: MessageType, message: string, receiver: Array<MVC>, sender: MVCElement) {
+    castNeighbour(neighbour: MVCElement, receiver: Array<MVCElement>, sender: MVCElement) {
 
-            const signature = CryptoUtil.GenerateSignature(message,this.#privateKey)
-
-            if (type === MessageType.setValue) {
-                for (let i = 0; i < receiver.length; i++) {
-                    receiver[i].changeValue(message, signature)
-                }
-            } else if (type === MessageType.assignNeighbour) {
-                for (let i = 0; i < receiver.length; i++) {
-                    receiver[i].setNeighbour(message, signature)
-                }
-            } else if (type === MessageType.forward) {
-                for (let i = 0; i < receiver.length; i++) {
-                    receiver[i].receiveForward(message, sender)
-                }
-            }
+        const signature = CryptoUtil.GenerateSignature(neighbour.publicKey, this.#privateKey)
+        receiver[i].receiveFollowingNode(neighbour, sender, signature)
     }
 
-    forwardMessage(from: string, to: string, message: string) {
+    cast(type: MessageType, message: string, receiver: Array<MVC>, sender: MVCElement, signature) {
+
+        const controllerSignature = CryptoUtil.GenerateSignature(message, this.#privateKey)
+
+        if (type === MessageType.setValue) {
+            for (let i = 0; i < receiver.length; i++) {
+                receiver[i].changeValue(message, controllerSignature)
+            }
+        } else if (type === MessageType.assignNeighbour) {
+            for (let i = 0; i < receiver.length; i++) {
+                receiver[i].setNeighbour(message, controllerSignature)
+            }
+        } else if (type === MessageType.forward) {
+            for (let i = 0; i < receiver.length; i++) {
+                receiver[i].receiveForward(message, sender, signature)
+            }
+        }
+    }
+
+    forwardMessage(from: MVCElement, to: MVCElement, message: string, signature: string) {
         const validParticipants = this.controlledModels.filter(m => {
-            return m.name === to || m.name === from
+            return m.name === to.name || m.name === from.name
         })
 
         if (validParticipants.length === 2) {
             const recipients = validParticipants.filter(m => {
-                return m.name === to
+                return m.name === to.name
             })
             const sender = validParticipants.filter(m => {
-                return m.name === from
+                return m.name === from.name
             })[0]
 
-            this.cast(MessageType.forward,message, recipients,sender)
+            this.cast(MessageType.forward, message, recipients, sender, signature)
         }
     }
 }

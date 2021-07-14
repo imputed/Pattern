@@ -22,11 +22,21 @@ export default class MVCElement {
 
     }
 
-    setNeighbour(message: string, signedMessage: string) {
-        if (CryptoUtil.ValidateSignature(message,signedMessage,this.#controller.publicKey)) {
-            this.#followingNode = message
-            const signedPublicKey = CryptoUtil.GenerateSignature(this.publicKey,this.#privateKey)
-            this.forwardMessage(this.#followingNode,signedPublicKey)
+    setNeighbour(neighbour: MVCElement, signedPublicKey: string, publicKey:string) {
+        if (CryptoUtil.ValidateSignature(neighbour.publicKey,signedPublicKey,publicKey)) {
+            this.#followingNode = neighbour
+            const data = "my secret data"
+
+            const encryptedData = crypto.publicEncrypt(
+                {
+                    key: this.#followingNode.publicKey,
+                    oaepHash: "sha256",
+                },
+                // We convert the data string to a buffer using `Buffer.from`
+                Buffer.from(data)
+            )
+
+            this.forwardMessage(this.#followingNode,encryptedData,"")
         }
     }
 
@@ -42,20 +52,27 @@ export default class MVCElement {
         this.#controller.receiveProposal(value, this)
     }
 
-    forwardMessage(to: string, message: string) {
-        this.#controller.forwardMessage(this.name, to, message)
+    forwardMessage(to: string, message: string, signature:string) {
+        this.#controller.forwardMessage(this, to, message, signature)
     }
 
     talkToFollowingNode(message:string){
         const signature = crypto.sign("sha256", Buffer.from(message), {
             key: this.#privateKey
         })
-        this.forwardMessage(this.#followingNode,signature)
+        this.forwardMessage(this.#followingNode,message, signature)
     }
 
 
-    receiveForward(message: string, from: MVCElement) {
-        console.log("I am ", this.name, message, " from ", from.name)
+    receiveForward(message: string, from: MVCElement,signature:string) {
+        const decryptedData = crypto.privateDecrypt(
+            {
+                key: this.#privateKey,
+                oaepHash: "sha256",
+            },
+            message
+        )
+        console.log("I am ", this.name, decryptedData.toString(), " from ", from.name)
     }
 
 }
