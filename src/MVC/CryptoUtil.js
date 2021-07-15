@@ -8,40 +8,47 @@ export class ReturnKeys {
 
 export default class CryptoUtil {
 
-    static GenerateKeys(): ReturnKeys {
-        const {publicKey, privateKey} = crypto.generateKeyPairSync("rsa", {
-            // The standard secure default length for RSA keys is 2048 bits
-            publicKeyEncoding: {
-                type: 'spki',
-                format: 'pem'
-            },
-            modulusLength: 4096,
-        })
+    static GetEncryptionOption(key): Object {
+        return {
+            key: key,
+            oaepHash: "sha256"
+        };
+    }
 
+    static GetKeyGenerationOptions(): Object {
+        return ({
+                publicKeyEncoding: {
+                    type: 'spki',
+                    format: 'pem'
+                },
+                modulusLength: 4096
+            }
+        )
+    }
+
+
+    static GenerateKeys(): ReturnKeys {
+        const {publicKey, privateKey} = crypto.generateKeyPairSync("rsa", CryptoUtil.GetKeyGenerationOptions())
         let keys = new ReturnKeys()
-        keys.isValid = true;
+        keys.isValid = true
         keys.publicKey = publicKey;
         keys.privateKey = privateKey;
         return keys
     }
 
     static GenerateSignature(dataString: string, privateKey: string): string {
-        const signature = crypto.sign("sha256", Buffer.from(dataString), {
-            key: privateKey
-        });
-        return signature
+        return crypto.sign("sha256", Buffer.from(dataString), CryptoUtil.GetEncryptionOption(privateKey))
     }
 
-    static ValidateSignature(dataString: string,signedDataString:string, publicKey: string): bool {
+    static ValidateSignature(dataString: string, signedDataString: string, publicKey: string): boolean {
+        return crypto.verify("sha256", Buffer.from(dataString), CryptoUtil.GetEncryptionOption(publicKey), signedDataString)
+    }
 
-        const isVerified = crypto.verify(
-            "sha256",
-            Buffer.from(dataString),
-            {
-                key: publicKey
-            },
-            signedDataString
-        )
-        return isVerified
+    static Encrypt(data: string, publicKey: string): string {
+        return crypto.publicEncrypt(CryptoUtil.GetEncryptionOption(publicKey), Buffer.from(data))
+    }
+
+    static Decrypt(encryptedData: string, privateKey: string): string {
+        return crypto.privateDecrypt(CryptoUtil.GetEncryptionOption(privateKey), encryptedData)
     }
 }

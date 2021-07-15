@@ -22,8 +22,8 @@ export default class MVCElement {
 
     }
 
-    setNeighbour(neighbour: MVCElement, signedPublicKey: string, publicKey:string) {
-        if (CryptoUtil.ValidateSignature(neighbour.publicKey,signedPublicKey,publicKey)) {
+    setNeighbour(neighbour: MVCElement, signedPublicKey: string, publicKey: string) {
+        if (CryptoUtil.ValidateSignature(neighbour.publicKey, signedPublicKey, publicKey)) {
             this.#followingNode = neighbour
             const data = "my secret data"
 
@@ -32,47 +32,36 @@ export default class MVCElement {
                     key: this.#followingNode.publicKey,
                     oaepHash: "sha256",
                 },
-                // We convert the data string to a buffer using `Buffer.from`
                 Buffer.from(data)
             )
 
-            this.forwardMessage(this.#followingNode,encryptedData,"")
+            this.forwardMessage(this.#followingNode, encryptedData, "")
         }
     }
 
     changeValue(message: string, signedMessage: string) {
-        if (this.isControllerMessageValid(message, signedMessage)) {
+        if (CryptoUtil.ValidateSignature(message, signedMessage,this.#controller.publicKey)) {
             console.log("Received Change-Request at ", this.name, " from controller: ", message)
             this.#value = message
         }
     }
 
-    proposeNewValue(value: number) {
-        console.log("Send proposal at ", this.name, " to controller: ", value)
-        this.#controller.receiveProposal(value, this)
-    }
 
-    forwardMessage(to: string, message: string, signature:string) {
+
+    forwardMessage(to: string, message: string, signature: string) {
         this.#controller.forwardMessage(this, to, message, signature)
     }
 
-    talkToFollowingNode(message:string){
-        const signature = crypto.sign("sha256", Buffer.from(message), {
-            key: this.#privateKey
-        })
-        this.forwardMessage(this.#followingNode,message, signature)
+    talkToFollowingNode(message: string) {
+        const data = CryptoUtil.Encrypt(message, this.#followingNode.publicKey)
+        const signature = CryptoUtil.GenerateSignature(data, this.#privateKey)
+        this.forwardMessage(this.#followingNode, data, signature)
     }
 
 
-    receiveForward(message: string, from: MVCElement,signature:string) {
-        const decryptedData = crypto.privateDecrypt(
-            {
-                key: this.#privateKey,
-                oaepHash: "sha256",
-            },
-            message
-        )
-        console.log("I am ", this.name, decryptedData.toString(), " from ", from.name)
+    receiveForward(message: string, from: MVCElement, signature:string) {
+        const decryptedData = CryptoUtil.Decrypt(message, this.#privateKey)
+            console.log("I am ", this.name, decryptedData.toString(), " from ", from.name)
     }
 
 }

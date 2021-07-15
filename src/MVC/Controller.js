@@ -19,7 +19,6 @@ export class Controller {
 
     constructor() {
         const returnKeys = CryptoUtil.GenerateKeys()
-
         if (returnKeys.isValid) {
             this.#privateKey = returnKeys.privateKey
             this.publicKey = returnKeys.publicKey
@@ -41,17 +40,11 @@ export class Controller {
     assignNeighbours() {
         if (this.controlledModels.length !== 0) {
             for (let i = 0; i < this.controlledModels.length; i++) {
-               let neighbour = this.controlledModels[((i + 1) % this.controlledModels.length)]
+                let neighbour = this.controlledModels[((i + 1) % this.controlledModels.length)]
                 const signature = CryptoUtil.GenerateSignature(neighbour.publicKey, this.#privateKey)
-                this.controlledModels[i].setNeighbour(neighbour, signature,this.publicKey)
+                this.controlledModels[i].setNeighbour(neighbour, signature, this.publicKey)
             }
         }
-    }
-
-    castNeighbour(neighbour: MVCElement, receiver: Array<MVCElement>, sender: MVCElement) {
-
-        const signature = CryptoUtil.GenerateSignature(neighbour.publicKey, this.#privateKey)
-        receiver[i].receiveFollowingNode(neighbour, sender, signature)
     }
 
     cast(type: MessageType, message: string, receiver: Array<MVC>, sender: MVCElement, signature) {
