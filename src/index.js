@@ -1,12 +1,14 @@
 import {Controller} from "./MVC/Controller.js";
+import Model from "./MVC/Model.js";
 
-const c = new Controller()
-for (let i = 0; i < 20; i++) {
-    c.addModel("Model_"+i)
-
-}
-c.assignNeighbours()
-
-for (let i = 0; i < c.controlledModels.length; i++) {
-    c.controlledModels[i].talkToFollowingNode("TestEncryption"+i)
-}
+const mvc = new Model()
+mvc.TestEncryption()
+// const c = new Controller()
+// for (let i = 0; i < 2; i++) {
+//     c.addModel("Model_"+i)
+//
+// }
+// c.assignNeighbours()
+//
+// c.controlledModels[0].initExchange()
+//

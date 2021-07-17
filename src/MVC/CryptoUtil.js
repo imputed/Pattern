@@ -1,10 +1,14 @@
 import crypto from "crypto";
+import MVCElement from "./MVCElement.js";
 
 export class ReturnKeys {
     privateKey: string
     publicKey: string
     isValid: boolean
 }
+
+const SymmetricAlgorihm = 'aes-192-cbc'
+const iv = Buffer.alloc(16, 0)
 
 export default class CryptoUtil {
 
@@ -50,5 +54,44 @@ export default class CryptoUtil {
 
     static Decrypt(encryptedData: string, privateKey: string): string {
         return crypto.privateDecrypt(CryptoUtil.GetEncryptionOption(privateKey), encryptedData)
+    }
+
+    static InitExchange(): { exchangeObject: crypto.DiffieHellman, exchangeKey: string } {
+        const exchangeObject = crypto.createDiffieHellman(2048)
+        const exchangeKey = exchangeObject.generateKeys()
+        return {exchangeObject, exchangeKey}
+    }
+
+    static InvokeExchange(exchangePrime: string, exchangeGenerator: string): { exchangeObject: crypto.DiffieHellman, exchangeKey: string } {
+        const exchangeObject = crypto.createDiffieHellman(exchangePrime, exchangeGenerator)
+        const exchangeKey = exchangeObject.generateKeys()
+        return {exchangeObject, exchangeKey}
+    }
+
+    static CalculateSecret(exchangeObject: crypto.DiffieHellman, key: string): string {
+        return exchangeObject.computeSecret(key)
+    }
+
+    static SymmetricEncryptAsync(resultReceiver: MVCElement, data: string, secret: string): string {
+        crypto.scrypt(secret, 'salt', 24, (err, key) => {
+            if (err) throw err;
+
+            let encrypted = ""
+            let cipher = crypto.createCipheriv(SymmetricAlgorihm, key, iv);
+            cipher.setEncoding('hex');
+            cipher.write(data);
+            cipher.end();
+
+            cipher.on('data', (chunk) => encrypted += chunk);
+            cipher.on('end', () => console.log(resultReceiver.GetEncryptedValue(encrypted)));
+        })
+    }
+
+    static SymmetricDecryptSync(resultReceiver: MVCElement, data: string, secret: string): string {
+        const key = crypto.scryptSync(secret, 'salt', 24);
+        const decipher = crypto.createDecipheriv(SymmetricAlgorihm, key, iv);
+        let decrypted = decipher.update(data, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted
     }
 }
