@@ -1,6 +1,5 @@
 // @flow
 import CryptoUtil from "./CryptoUtil.js";
-import * as crypto from "crypto";
 
 export default class MVCElement {
     name: string
@@ -8,11 +7,12 @@ export default class MVCElement {
     #controller: MVCElement
 
     #followingNode: MVCElement
-    publicKey: string
+    #publicKey: string
     #privateKey: string
     #initExchangeObjects: Map
     #invokeExchangeObjects: Map
     #invokeExchangeSecrets: Map
+    #publicKeys: Map
 
     constructor(name: string, controller: MVCElement) {
         this.#controller = controller
@@ -20,12 +20,12 @@ export default class MVCElement {
         this.#initExchangeObjects = new Map()
         this.#invokeExchangeObjects = new Map()
         this.#invokeExchangeSecrets = new Map()
-
+        this.#publicKeys = new Map()
         const returnKeys = CryptoUtil.GenerateKeys()
 
         if (returnKeys.isValid) {
             this.#privateKey = returnKeys.privateKey
-            this.publicKey = returnKeys.publicKey
+            this.#publicKey = returnKeys.publicKey
         }
 
     }
@@ -33,17 +33,6 @@ export default class MVCElement {
     setNeighbour(neighbour: MVCElement, signedPublicKey: string, publicKey: string) {
         if (CryptoUtil.ValidateSignature(neighbour.publicKey, signedPublicKey, publicKey)) {
             this.#followingNode = neighbour
-            const data = "my secret data"
-
-            const encryptedData = crypto.publicEncrypt(
-                {
-                    key: this.#followingNode.publicKey,
-                    oaepHash: "sha256",
-                },
-                Buffer.from(data)
-            )
-
-            this.forwardMessage(this.#followingNode, encryptedData, "")
         }
     }
 
@@ -82,31 +71,46 @@ export default class MVCElement {
         const exchange = CryptoUtil.InvokeExchange(exchangePrime, exchangeGenerator)
         this.#invokeExchangeObjects.set(sender.name, exchange.exchangeObject)
         this.#invokeExchangeSecrets.set(sender.name, CryptoUtil.CalculateSecret(exchange.exchangeObject, exchangeKey))
-        const encryptedData = CryptoUtil.SymmetricEncryptAsync(this.publicKey, this.#invokeExchangeSecrets.get(sender.name))
-        sender.respondToInvokeExchange(this, exchange.exchangeKey, encryptedData)
+        const encryptedData = CryptoUtil.SymmetricEncrypt(this.#publicKey, this.#invokeExchangeSecrets.get(sender.name))
+        const signedEncryptedData = CryptoUtil.GenerateSignature(encryptedData, this.#privateKey)
+
+        sender.respondToInvokeExchange(this, exchange.exchangeKey, encryptedData, signedEncryptedData)
     }
 
 
-    respondToInvokeExchange(sender: MVCElement, exchangeKey: string, encryptedData: string): void {
+    respondToInvokeExchange(sender: MVCElement, exchangeKey: string, encryptedData: string, encryptedDataSignature: string): void {
         const secret = CryptoUtil.CalculateSecret(this.#initExchangeObjects.get(sender.name), exchangeKey)
         this.#invokeExchangeSecrets.set(sender.name, secret)
-        console.log("Got the message: " + CryptoUtil.SymmetricDecryptSync(encryptedData, secret))
-    }
+        const decryptedPublicKey = CryptoUtil.SymmetricDecrypt(encryptedData, secret)
+        if (CryptoUtil.ValidateSignature(encryptedData, encryptedDataSignature, decryptedPublicKey)) {
+            this.#publicKeys.set(sender.name, decryptedPublicKey)
+            const encryptedData = CryptoUtil.SymmetricEncrypt(this.#publicKey,secret)
+            const signedEncryptedData = CryptoUtil.GenerateSignature(encryptedData, this.#privateKey)
+            sender.lastInvokeExchange(this,encryptedData,signedEncryptedData)
 
-    TestEncryption() {
-
-        const text = "I am a Password!"
-        const secret = "secret4exchange"
-        console.log(secret,text)
-        CryptoUtil.SymmetricEncryptAsync(this,text, secret)
-    }
-
-
-    GetEncryptedValue(data:string){
-        console.log(data)
-        const secret = "secret4exchange"
-        const dec = CryptoUtil.SymmetricDecryptSync(this, data, secret)
-        console.log(dec)
+        }
 
     }
+    lastInvokeExchange(sender: MVCElement, encryptedData: string, encryptedDataSignature: string): void {
+
+        const decryptedPublicKey = CryptoUtil.SymmetricDecrypt(encryptedData, this.#invokeExchangeSecrets.get(sender.name))
+        if (CryptoUtil.ValidateSignature(encryptedData, encryptedDataSignature, decryptedPublicKey)) {
+            this.#publicKeys.set(sender.name, decryptedPublicKey)
+            const data = "My First encrypted message from "+this.name
+            const encrypted = CryptoUtil.Encrypt(data,decryptedPublicKey)
+            const sig = CryptoUtil.GenerateSignature(encrypted, this.#privateKey)
+            sender.first(this,encrypted,sig)
+        }
+    }
+
+    first(sender: MVCElement, encryptedData: string, encryptedDataSignature: string): void {
+
+       if (CryptoUtil.ValidateSignature(encryptedData, encryptedDataSignature, this.#publicKeys.get(sender.name))) {
+            console.log(CryptoUtil.Decrypt(encryptedData, this.#privateKey).toString())
+
+        }
+    }
+
+    
+
 }

@@ -72,26 +72,22 @@ export default class CryptoUtil {
         return exchangeObject.computeSecret(key)
     }
 
-    static SymmetricEncryptAsync(resultReceiver: MVCElement, data: string, secret: string): string {
-        crypto.scrypt(secret, 'salt', 24, (err, key) => {
-            if (err) throw err;
-
-            let encrypted = ""
-            let cipher = crypto.createCipheriv(SymmetricAlgorihm, key, iv);
-            cipher.setEncoding('hex');
-            cipher.write(data);
-            cipher.end();
-
-            cipher.on('data', (chunk) => encrypted += chunk);
-            cipher.on('end', () => console.log(resultReceiver.GetEncryptedValue(encrypted)));
-        })
+    static SymmetricEncrypt(data: string, secret: string): string {
+        const key = crypto.scryptSync(secret, 'salt', 24)
+        let cipher = crypto.createCipheriv(SymmetricAlgorihm, key, iv);
+        cipher.setEncoding('hex');
+        let encrypted = cipher.update(data);
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        return encrypted.toString('hex')
     }
 
-    static SymmetricDecryptSync(resultReceiver: MVCElement, data: string, secret: string): string {
+
+    static SymmetricDecrypt(data: string, secret: string): string {
         const key = crypto.scryptSync(secret, 'salt', 24);
-        const decipher = crypto.createDecipheriv(SymmetricAlgorihm, key, iv);
-        let decrypted = decipher.update(data, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return decrypted
+        let encryptedText = Buffer.from(data, 'hex');
+        let decipher = crypto.createDecipheriv(SymmetricAlgorihm, key, iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
     }
 }
