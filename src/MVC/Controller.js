@@ -1,8 +1,6 @@
 import Model from "./Model.js";
-import View from "./View.js"
 import MVCElement from "./MVCElement.js";
-import CryptoUtil, {ReturnKeys} from "./CryptoUtil.js";
-import * as crypto from "crypto";
+import CryptoUtil from "./CryptoUtil.js";
 
 
 const MessageType = {
@@ -40,9 +38,13 @@ export class Controller {
     assignNeighbours() {
         if (this.controlledModels.length !== 0) {
             for (let i = 0; i < this.controlledModels.length; i++) {
-                let neighbour = this.controlledModels[((i + 1) % this.controlledModels.length)]
-                const signature = CryptoUtil.GenerateSignature(neighbour.publicKey, this.#privateKey)
-                this.controlledModels[i].setNeighbour(neighbour, signature, this.publicKey)
+                const neighbours = this.getNeighbours(this.controlledModels[i],i,2,2)
+                for (let j = 0; j < neighbours.length  ; j++) {
+
+                    const signature = CryptoUtil.GenerateSignature(neighbours[j].getPublicKey(this), this.#privateKey)
+                    this.controlledModels[i].setNeighbour(neighbours[j], signature, this.publicKey)
+                }
+
             }
         }
     }
@@ -82,4 +84,18 @@ export class Controller {
             this.cast(MessageType.forward, message, recipients, sender, signature)
         }
     }
+
+    getNeighbours(node: MVCElement, start: number, stepsize: number, desiredCount: number): Array<MVCElement> {
+        let neighbours = []
+        let pos = (start + stepsize) % this.controlledModels.length
+        while (neighbours.length !== desiredCount) {
+            neighbours.push(this.controlledModels[pos])
+            pos = (pos + stepsize) % this.controlledModels.length
+        }
+        return neighbours
+
+
+    }
 }
+
+
