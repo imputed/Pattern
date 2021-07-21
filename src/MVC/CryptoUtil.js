@@ -90,4 +90,9 @@ export default class CryptoUtil {
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         return decrypted.toString();
     }
+
+    static getMessageID():string{
+        const val = crypto.randomInt(1000000)
+        return val
+    }
 }
