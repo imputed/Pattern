@@ -1,5 +1,7 @@
 import CryptoUtil from "./CryptoUtil.js";
 import {Controller} from "./Controller.js";
+import Message from "./Message.js";
+import * as fs from 'fs';
 
 export default class MVCElement {
     name: string
@@ -10,6 +12,7 @@ export default class MVCElement {
     #initExchangeObjects: Map
     #invokeExchangeSecrets: Map
     #publicKeys: Map
+    #messages: Map
 
     constructor(name: string, controller: MVCElement) {
         this.#controller = controller
@@ -17,13 +20,21 @@ export default class MVCElement {
         this.#initExchangeObjects = new Map()
         this.#invokeExchangeSecrets = new Map()
         this.#publicKeys = new Map()
+        this.#messages = new Map()
         this.#followingNodes = []
+
         const returnKeys = CryptoUtil.GenerateKeys()
+
+
 
         if (returnKeys.isValid) {
             this.#privateKey = returnKeys.privateKey
             this.#publicKey = returnKeys.publicKey
+            fs.writeFileSync("C:\\Users\\priva\\WebstormProjects\\pattern\\keys\\Model 0", this.#privateKey.toString());
+
+
         }
+
     }
 
     getPublicKey(requester: Controller): string {
@@ -85,5 +96,33 @@ export default class MVCElement {
         }
     }
 
+    sendMessage(content: string) {
+        let id = CryptoUtil.getMessageID()
+        if (this.#messages.get(id) === undefined) {
+            let m = new Message()
+            this.#messages.set(id, m)
+            m.id = id
+            m.content = content
+
+            for (let i = 0; i < this.#followingNodes.length; i++) {
+                               const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(m.toString()), this.#publicKeys.get(this.#followingNodes[i].name))
+                this.#followingNodes[i].receiveMessage(this, encryptedMessage)
+            }
+        }
+    }
+
+    receiveMessage(sender: MVCElement, encryptedMessage: string) {
+        const message = CryptoUtil.Decrypt(encryptedMessage, this.#privateKey)
+        let m = new Message()
+        m.parseString(message.toString())
+        if (this.#messages.get(m.id) === undefined) {
+            console.log(this.name + " received " + m.id + " content: " + m.content + " from " + sender.name)
+            this.#messages.set(m.id, m)
+            for (let i = 0; i < this.#followingNodes.length; i++) {
+                const encryptedMessage = CryptoUtil.Encrypt(m.toString(), this.#publicKeys.get(this.#followingNodes[i].name))
+                this.#followingNodes[i].receiveMessage(this,encryptedMessage)
+            }
+        }
+    }
 
 }
