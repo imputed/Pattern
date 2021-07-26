@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import MVCElement from "./MVCElement.js";
 
 export class ReturnKeys {
     privateKey: string
@@ -94,5 +93,9 @@ export default class CryptoUtil {
     static getMessageID():string{
         const val = crypto.randomInt(1000000)
         return val
+    }
+
+    static HashContent(message:string) {
+        return crypto.createHash("sha256")
     }
 }

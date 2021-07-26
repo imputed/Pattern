@@ -1,4 +1,3 @@
-import Model from "./Model.js";
 import MVCElement from "./MVCElement.js";
 import CryptoUtil from "./CryptoUtil.js";
 
@@ -13,7 +12,7 @@ export class Controller {
     #privateKey: string
     publicKey: string
     currentValue: number
-    controlledModels: Array<MVCElement>
+    controlledNodes: Array<MVCElement>
 
     constructor() {
         const returnKeys = CryptoUtil.GenerateKeys()
@@ -21,33 +20,34 @@ export class Controller {
             this.#privateKey = returnKeys.privateKey
             this.publicKey = returnKeys.publicKey
         }
-        this.controlledModels = []
+        this.controlledNodes = []
     }
 
-    addModel(name: string) {
-        const newModel = new Model(name, this)
-        this.controlledModels.push(newModel)
+    addNode(name: string) {
+        const newNode = new MVCElement(name, this)
+        this.controlledNodes.push(newNode)
+    }
+
+    addMVCNode(node:MVCElement) {
+        this.controlledNodes.push(node)
     }
 
     receiveProposal(value: number) {
         console.log("received proposal at controller", value)
         this.currentValue = value
-        this.cast(value.toString(), this.controlledModels)
+        this.cast(value.toString(), this.controlledNodes)
     }
 
     assignNeighbours() {
-        if (this.controlledModels.length !== 0) {
-            for (let i = 0; i < this.controlledModels.length; i++) {
-                const neighbours = this.getNeighbours(this.controlledModels[i],i,2,2)
-                for (let j = 0; j < neighbours.length  ; j++) {
-
-                    const signature = CryptoUtil.GenerateSignature(neighbours[j].getPublicKey(this), this.#privateKey)
-                    this.controlledModels[i].setNeighbour(neighbours[j], signature, this.publicKey)
+        if (this.controlledNodes.length !== 0) {
+            for (let i = 0; i < this.controlledNodes.length; i++) {
+                const neighbourIndex = (i+1)%(this.controlledNodes.length)
+                    const signature = CryptoUtil.GenerateSignature(this.controlledNodes[neighbourIndex].getPublicKey(this), this.#privateKey)
+                    this.controlledNodes[i].setNeighbour(this.controlledNodes[neighbourIndex], signature, this.publicKey)
                 }
 
             }
         }
-    }
 
     cast(type: MessageType, message: string, receiver: Array<MVC>, sender: MVCElement, signature) {
 
@@ -69,7 +69,7 @@ export class Controller {
     }
 
     forwardMessage(from: MVCElement, to: MVCElement, message: string, signature: string) {
-        const validParticipants = this.controlledModels.filter(m => {
+        const validParticipants = this.controlledNodes.filter(m => {
             return m.name === to.name || m.name === from.name
         })
 
@@ -85,17 +85,6 @@ export class Controller {
         }
     }
 
-    getNeighbours(node: MVCElement, start: number, stepsize: number, desiredCount: number): Array<MVCElement> {
-        let neighbours = []
-        let pos = (start + stepsize) % this.controlledModels.length
-        while (neighbours.length !== desiredCount) {
-            neighbours.push(this.controlledModels[pos])
-            pos = (pos + stepsize) % this.controlledModels.length
-        }
-        return neighbours
-
-
-    }
 }
 
 

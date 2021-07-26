@@ -14,8 +14,7 @@ export default class MVCElement {
     #publicKeys: Map
     #messages: Map
 
-    constructor(name: string, controller: MVCElement) {
-        this.#controller = controller
+    constructor(name: string) {
         this.name = name
         this.#initExchangeObjects = new Map()
         this.#invokeExchangeSecrets = new Map()
@@ -24,21 +23,16 @@ export default class MVCElement {
         this.#followingNodes = []
 
         const returnKeys = CryptoUtil.GenerateKeys()
-
-
-
-        if (returnKeys.isValid) {
-            this.#privateKey = returnKeys.privateKey
-            this.#publicKey = returnKeys.publicKey
-            fs.writeFileSync("C:\\Users\\priva\\WebstormProjects\\pattern\\keys\\Model 0", this.#privateKey.toString());
-
-
-        }
-
+        this.#privateKey = returnKeys.privateKey
+        this.#publicKey = returnKeys.publicKey
     }
 
-    getPublicKey(requester: Controller): string {
+    getPublicKey(): string {
         return this.#publicKey
+    }
+
+    getFollowingNodes(): Array<MVCElement> {
+        return this.#followingNodes
     }
 
     setNeighbour(neighbour: MVCElement, signedPublicKey: string, publicKey: string) {
@@ -105,7 +99,7 @@ export default class MVCElement {
             m.content = content
 
             for (let i = 0; i < this.#followingNodes.length; i++) {
-                               const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(m.toString()), this.#publicKeys.get(this.#followingNodes[i].name))
+                const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(m.toString()), this.#publicKeys.get(this.#followingNodes[i].name))
                 this.#followingNodes[i].receiveMessage(this, encryptedMessage)
             }
         }
@@ -120,9 +114,18 @@ export default class MVCElement {
             this.#messages.set(m.id, m)
             for (let i = 0; i < this.#followingNodes.length; i++) {
                 const encryptedMessage = CryptoUtil.Encrypt(m.toString(), this.#publicKeys.get(this.#followingNodes[i].name))
-                this.#followingNodes[i].receiveMessage(this,encryptedMessage)
+                this.#followingNodes[i].receiveMessage(this, encryptedMessage)
             }
         }
     }
+
+    ExportPublicKeys():Map {
+        let signedPublicKeys = new Map()
+        this.#publicKeys.forEach(((value, key) =>{
+            signedPublicKeys.set(key,CryptoUtil.GenerateSignature(value,this.#privateKey))
+        }))
+        return signedPublicKeys
+    }
+
 
 }
