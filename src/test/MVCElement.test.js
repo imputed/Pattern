@@ -1,9 +1,9 @@
-import assert from "assert";
 import sinon from "sinon";
 import chai from "chai";
 import MVCElement from "../MVC/MVCElement.js";
 import {Controller} from "../MVC/Controller.js";
 import CryptoUtil from "../MVC/CryptoUtil.js";
+import Message from "../MVC/Message.js";
 
 describe('Mock', function () {
     describe('Basic Functionality', function () {
@@ -92,17 +92,70 @@ describe("Exchange Keys", function () {
 })
 
 
-function prepareExchange():Controller {
-    const name1 = "Node 1"
-    const name2 = "Node 2"
-    const name3 = "Node 3"
+describe("Create Storage Element", function () {
+    it('should add the message and store it in queue', function () {
+
+        const name = "Node"
+        const c = new Controller()
+        let node = new MVCElement(name, c)
+
+        let buffer = new ArrayBuffer(16)
+        for (let i = 0; i < buffer.byteLength; i++) {
+            buffer[i] = 1 + i
+        }
+        const randomTitle = "Random Title"
+        node.addStorageElement(randomTitle,buffer)
+        const elem = node.getLastStorageElememt()
+        chai.expect(elem.title ).to.equal(randomTitle);
+        chai.expect(elem.content ).to.equal(buffer);
+
+    });
+});
+describe("Add Message", function () {
+    it('should add the message and store it for later use', function () {
+        let buffer = new ArrayBuffer(16)
+        for (let i = 0; i < buffer.byteLength; i++) {
+            buffer[i] = 1 + i
+        }
+
+        let m = new Message("Random Title", buffer)
+        let c = prepareExchange(2);
+        c.controlledNodes[0].sendMessage(m)
+
+        chai.expect(CryptoUtil.ValidateSignature(public0, signedPublic0By2, public2)).to.be.true;
+        chai.expect(CryptoUtil.ValidateSignature(public1, signedPublic1By0, public0)).to.be.true;
+        chai.expect(CryptoUtil.ValidateSignature(public2, signedPublic2By1, public1)).to.be.true;
+    });
+});
+
+
+function prepareExchange(count: number): Controller {
     let c = new Controller();
+    const name1 = "Node 1"
     let node = new MVCElement(name1, c)
-    let node2 = new MVCElement(name2, c)
-    let node3 = new MVCElement(name3, c)
-    c.addMVCNode(node)
-    c.addMVCNode(node2)
-    c.addMVCNode(node3)
+
+
+    switch (count) {
+
+        case 1:
+            c.addMVCNode(node)
+            break
+        case 2:
+            const name2 = "Node 2"
+            let node2 = new MVCElement(name2, c)
+            c.addMVCNode(node)
+            c.addMVCNode(node2)
+            break
+        case 3:
+            const name3 = "Node 3"
+            let node3 = new MVCElement(name3, c)
+            c.addMVCNode(node)
+            c.addMVCNode(node2)
+            c.addMVCNode(node3)
+            defaut:
+                ;
+    }
+
     c.assignNeighbours();
     for (let i = 0; i < c.controlledNodes.length; i++) {
         c.controlledNodes[i].initExchange()

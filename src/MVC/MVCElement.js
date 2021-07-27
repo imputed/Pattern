@@ -1,7 +1,6 @@
 import CryptoUtil from "./CryptoUtil.js";
 import {Controller} from "./Controller.js";
 import Message from "./Message.js";
-import * as fs from 'fs';
 
 export default class MVCElement {
     name: string
@@ -13,6 +12,8 @@ export default class MVCElement {
     #invokeExchangeSecrets: Map
     #publicKeys: Map
     #messages: Map
+    #messageQueue: []
+
 
     constructor(name: string) {
         this.name = name
@@ -21,7 +22,7 @@ export default class MVCElement {
         this.#publicKeys = new Map()
         this.#messages = new Map()
         this.#followingNodes = []
-
+        this.#messageQueue = []
         const returnKeys = CryptoUtil.GenerateKeys()
         this.#privateKey = returnKeys.privateKey
         this.#publicKey = returnKeys.publicKey
@@ -85,19 +86,14 @@ export default class MVCElement {
     InvokeFinal(sender: MVCElement, encryptedData: string, encryptedDataSignature: string): void {
         const decryptedPublicKey = CryptoUtil.SymmetricDecrypt(encryptedData, this.#invokeExchangeSecrets.get(sender.name))
         if (CryptoUtil.ValidateSignature(encryptedData, encryptedDataSignature, decryptedPublicKey)) {
-            console.log("Received Public Key: " + decryptedPublicKey + " at " + this.name + " from " + sender.name)
+            console.log("Received Public Key" + " at " + this.name + " from " + sender.name)
             this.#publicKeys.set(sender.name, decryptedPublicKey)
         }
     }
 
-    sendMessage(content: string) {
-        let id = CryptoUtil.getMessageID()
-        if (this.#messages.get(id) === undefined) {
-            let m = new Message()
-            this.#messages.set(id, m)
-            m.id = id
-            m.content = content
-
+    sendMessage(message: Message) {
+        if (this.#messages.get(message.id.digest("hex")) === undefined) {
+            this.#messages.set(message.id.digest("hex"), m)
             for (let i = 0; i < this.#followingNodes.length; i++) {
                 const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(m.toString()), this.#publicKeys.get(this.#followingNodes[i].name))
                 this.#followingNodes[i].receiveMessage(this, encryptedMessage)
@@ -119,10 +115,23 @@ export default class MVCElement {
         }
     }
 
-    ExportPublicKeys():Map {
+    addStorageElement(title: string, content: string): Message {
+        let m = new Message(title,content)
+        this.#messageQueue.push(m)
+    }
+
+    getLastStorageElememt(): Message {
+        if (this.#messageQueue.length !== 0) {
+            return this.#messageQueue[this.#messageQueue.length - 1]
+        }
+        let b = new ArrayBuffer(1)
+        return new Message("Error", b)
+    }
+
+    ExportPublicKeys(): Map {
         let signedPublicKeys = new Map()
-        this.#publicKeys.forEach(((value, key) =>{
-            signedPublicKeys.set(key,CryptoUtil.GenerateSignature(value,this.#privateKey))
+        this.#publicKeys.forEach(((value, key) => {
+            signedPublicKeys.set(key, CryptoUtil.GenerateSignature(value, this.#privateKey))
         }))
         return signedPublicKeys
     }
