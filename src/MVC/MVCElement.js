@@ -1,10 +1,7 @@
 import CryptoUtil from "./CryptoUtil.js";
-import {Controller} from "./Controller.js";
 import Message from "./Message.js";
 
 export default class MVCElement {
-    name: string
-    #controller: Controller
     #followingNodes: Array<MVCElement>
     #publicKey: string
     #privateKey: string
@@ -12,20 +9,22 @@ export default class MVCElement {
     #invokeExchangeSecrets: Map
     #publicKeys: Map
     #messages: Map
-    #messageQueue: []
+    #messageQueue: Map
 
 
-    constructor(name: string) {
-        this.name = name
+    constructor(noCrypto: boolean) {
         this.#initExchangeObjects = new Map()
         this.#invokeExchangeSecrets = new Map()
         this.#publicKeys = new Map()
         this.#messages = new Map()
         this.#followingNodes = []
-        this.#messageQueue = []
-        const returnKeys = CryptoUtil.GenerateKeys()
-        this.#privateKey = returnKeys.privateKey
-        this.#publicKey = returnKeys.publicKey
+        this.#messageQueue = new Map()
+        if (noCrypto) {
+            const returnKeys = CryptoUtil.GenerateKeys()
+            this.#privateKey = returnKeys.privateKey
+            this.#publicKey = returnKeys.publicKey
+        }
+
     }
 
     getPublicKey(): string {
@@ -42,16 +41,6 @@ export default class MVCElement {
         }
     }
 
-
-    forwardMessage(to: string, message: string, signature: string) {
-        this.#controller.forwardMessage(this.name, to, message, signature)
-    }
-
-
-    receiveForward(message: string, from: MVCElement, signature: string) {
-        const decryptedData = CryptoUtil.Decrypt(message, this.#privateKey)
-        console.log("I am ", this.name, decryptedData.toString(), " from ", from.name)
-    }
 
     initExchange(): void {
         const exchange = CryptoUtil.InitExchange()
@@ -91,41 +80,46 @@ export default class MVCElement {
         }
     }
 
-    sendMessage(message: Message) {
+    sendMessage(message: Message, receiver: MVCElement) {
         if (this.#messages.get(message.id.digest("hex")) === undefined) {
             this.#messages.set(message.id.digest("hex"), m)
-            for (let i = 0; i < this.#followingNodes.length; i++) {
-                const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(m.toString()), this.#publicKeys.get(this.#followingNodes[i].name))
-                this.#followingNodes[i].receiveMessage(this, encryptedMessage)
-            }
+            const encryptedMessage = CryptoUtil.Encrypt(Buffer.from(message.toString()), receiver.getPublicKey())
+            this.#followingNodes[i].receiveMessage(this, encryptedMessage)
         }
     }
 
-    receiveMessage(sender: MVCElement, encryptedMessage: string) {
+
+    receiveMessage(encryptedMessage: string, sender: MVCElement) {
         const message = CryptoUtil.Decrypt(encryptedMessage, this.#privateKey)
-        let m = new Message()
-        m.parseString(message.toString())
-        if (this.#messages.get(m.id) === undefined) {
-            console.log(this.name + " received " + m.id + " content: " + m.content + " from " + sender.name)
-            this.#messages.set(m.id, m)
-            for (let i = 0; i < this.#followingNodes.length; i++) {
-                const encryptedMessage = CryptoUtil.Encrypt(m.toString(), this.#publicKeys.get(this.#followingNodes[i].name))
-                this.#followingNodes[i].receiveMessage(this, encryptedMessage)
-            }
+        if (this.#messages.get(message.id) === undefined) {
+            console.log(this.name + " received " + message.content + " from " + sender.name)
+            this.#messages.set(message.id, message)
         }
     }
 
     addStorageElement(title: string, content: string): Message {
-        let m = new Message(title,content)
-        this.#messageQueue.push(m)
+        let m = new Message(title, content)
+
+        let sendCount = 0
+        for (let i = 0; i < this.#followingNodes.length; i++) {
+            this.sendMessage(m, this.#followingNodes[i])
+            sendCount++
+        }
+        this.#messageQueue.set(m.getQueueRepresentation(), {message: m, sent: sendCount, received: 0})
+
     }
 
-    getLastStorageElememt(): Message {
-        if (this.#messageQueue.length !== 0) {
-            return this.#messageQueue[this.#messageQueue.length - 1]
+    getStatus(title, content): { message: Message, sent: number, received: number } {
+        let m = new Message(title,content)
+        const queueRepresentation = m.getQueueRepresentation()
+        if (this.#messageQueue.has(queueRepresentation)) {
+            let sent = this.#messageQueue.get(queueRepresentation).sent
+            let received = this.#messageQueue.get(queueRepresentation).received
+            return {sent: sent,received: received}
+        }else {
+            return {sent: -1,received: -1}
         }
-        let b = new ArrayBuffer(1)
-        return new Message("Error", b)
+
     }
 
     ExportPublicKeys(): Map {

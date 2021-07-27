@@ -11,7 +11,6 @@ const MessageType = {
 export class Controller {
     #privateKey: string
     publicKey: string
-    currentValue: number
     controlledNodes: Array<MVCElement>
 
     constructor() {
@@ -20,15 +19,16 @@ export class Controller {
             this.#privateKey = returnKeys.privateKey
             this.publicKey = returnKeys.publicKey
         }
+
         this.controlledNodes = []
     }
 
-    addNode(name: string) {
-        const newNode = new MVCElement(name, this)
+    addAndGenerateNode(name: string) {
+        const newNode = new MVCElement(name)
         this.controlledNodes.push(newNode)
     }
 
-    addMVCNode(node:MVCElement) {
+    addNode(node:MVCElement) {
         this.controlledNodes.push(node)
     }
 
@@ -39,10 +39,10 @@ export class Controller {
     }
 
     assignNeighbours() {
-        if (this.controlledNodes.length !== 0) {
+        if (this.controlledNodes.length !== 0 && this.controlledNodes.length !== 1) {
             for (let i = 0; i < this.controlledNodes.length; i++) {
-                const neighbourIndex = (i+1)%(this.controlledNodes.length)
-                    const signature = CryptoUtil.GenerateSignature(this.controlledNodes[neighbourIndex].getPublicKey(this), this.#privateKey)
+                const neighbourIndex = (i+1)%(this.controlledNodes.length-1)
+                    const signature = CryptoUtil.GenerateSignature(this.controlledNodes[neighbourIndex].getPublicKey(), this.#privateKey)
                     this.controlledNodes[i].setNeighbour(this.controlledNodes[neighbourIndex], signature, this.publicKey)
                 }
 

@@ -3,7 +3,6 @@ import chai from "chai";
 import MVCElement from "../MVC/MVCElement.js";
 import {Controller} from "../MVC/Controller.js";
 import CryptoUtil from "../MVC/CryptoUtil.js";
-import Message from "../MVC/Message.js";
 
 describe('Mock', function () {
     describe('Basic Functionality', function () {
@@ -27,9 +26,9 @@ describe('Mock', function () {
                 let node2 = new MVCElement(name2, c)
                 let node3 = new MVCElement(name3, c)
 
-                c.addMVCNode(node)
-                c.addMVCNode(node2)
-                c.addMVCNode(node3)
+                c.addNode(node)
+                c.addNode(node2)
+                c.addNode(node3)
 
                 c.assignNeighbours();
                 const copyControlledNodes = c.controlledNodes;
@@ -90,68 +89,77 @@ describe("Exchange Keys", function () {
         chai.expect(CryptoUtil.ValidateSignature(public2, signedPublic2By1, public1)).to.be.true
     });
 })
-
-
-describe("Create Storage Element", function () {
-    it('should add the message and store it in queue', function () {
-
+describe('should add the message and store it in queue and return sent and received with 0', function () {
+    it('test the positive case', function () {
         const name = "Node"
-        const c = new Controller()
-        let node = new MVCElement(name, c)
-
+        let node = new MVCElement(name, true)
         let buffer = new ArrayBuffer(16)
         for (let i = 0; i < buffer.byteLength; i++) {
             buffer[i] = 1 + i
         }
         const randomTitle = "Random Title"
-        node.addStorageElement(randomTitle,buffer)
-        const elem = node.getLastStorageElememt()
-        chai.expect(elem.title ).to.equal(randomTitle);
-        chai.expect(elem.content ).to.equal(buffer);
+        node.addStorageElement(randomTitle, buffer)
+        const elem = node.getStatus(randomTitle, buffer)
+        chai.expect(elem.sent).to.equal(0);
+        chai.expect(elem.received).to.equal(0);
+    })
+})
 
-    });
-});
+describe('should add the message and store it in queue and return sent and received with 0', function () {
+    it('test the negative', function () {
+        const name = "Node"
+        let node = new MVCElement(name, true)
+        let buffer = new ArrayBuffer(16)
+        for (let i = 0; i < buffer.byteLength; i++) {
+            buffer[i] = 1 + i
+        }
+        const randomTitle = "Random Title"
+        node.addStorageElement("dfdfd", buffer)
+        const elem = node.getStatus(randomTitle, buffer)
+        chai.expect(elem.sent).to.equal(-1);
+        chai.expect(elem.received).to.equal(-1);
+    })
+})
+
 describe("Add Message", function () {
     it('should add the message and store it for later use', function () {
         let buffer = new ArrayBuffer(16)
         for (let i = 0; i < buffer.byteLength; i++) {
             buffer[i] = 1 + i
         }
+        const randomTitle = "Random Title"
 
-        let m = new Message("Random Title", buffer)
         let c = prepareExchange(2);
-        c.controlledNodes[0].sendMessage(m)
 
-        chai.expect(CryptoUtil.ValidateSignature(public0, signedPublic0By2, public2)).to.be.true;
-        chai.expect(CryptoUtil.ValidateSignature(public1, signedPublic1By0, public0)).to.be.true;
-        chai.expect(CryptoUtil.ValidateSignature(public2, signedPublic2By1, public1)).to.be.true;
+        c.controlledNodes[0].addStorageElementt(randomTitle, buffer)
+        c.controlledNodes[1].receiveMessage = sinon.spy()
+
     });
 });
 
 
 function prepareExchange(count: number): Controller {
-    let c = new Controller();
+    let c = new Controller(false);
     const name1 = "Node 1"
-    let node = new MVCElement(name1, c)
+    let node = new MVCElement(name1)
 
 
     switch (count) {
-
         case 1:
-            c.addMVCNode(node)
+            c.addAndGenerateNode(node, false)
             break
         case 2:
             const name2 = "Node 2"
             let node2 = new MVCElement(name2, c)
-            c.addMVCNode(node)
-            c.addMVCNode(node2)
+            c.addAndGenerateNode(node, false)
+            c.addAndGenerateNode(node2, false)
             break
         case 3:
             const name3 = "Node 3"
             let node3 = new MVCElement(name3, c)
-            c.addMVCNode(node)
-            c.addMVCNode(node2)
-            c.addMVCNode(node3)
+            c.addNode(node)
+            c.addNode(node2)
+            c.addNode(node3)
             defaut:
                 ;
     }
@@ -160,5 +168,6 @@ function prepareExchange(count: number): Controller {
     for (let i = 0; i < c.controlledNodes.length; i++) {
         c.controlledNodes[i].initExchange()
     }
+
     return c
 }

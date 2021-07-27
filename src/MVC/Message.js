@@ -14,7 +14,11 @@ export default class Message {
         this.title = title
         this.content=content
     }
-    
+
+    getQueueRepresentation():string{
+        let enc = new TextEncoder()
+        return this.title + enc.encode(this.content)
+    }
 
     toString(): string {
         return this.id + separator + this.title + separator + this.content
