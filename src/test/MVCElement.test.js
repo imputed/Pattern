@@ -8,60 +8,34 @@ describe('Mock', function () {
     describe('Basic Functionality', function () {
         describe("Get Public Key", function () {
             it('Positiv', function () {
-
-                let mvc = new MVCElement("M1")
-                let fake = sinon.replace(mvc, "getPublicKey", sinon.fake(mvc.getPublicKey))
-
-                let i = mvc.getPublicKey()
-                chai.expect(fake.callCount).to.equal(1)
+                let c = prepareExchange(1)
+                let fake = sinon.replace(c.controlledNodes[0], "getPublicKey", sinon.fake(c.controlledNodes[0].getPublicKey));
+                let i = c.controlledNodes[0].getPublicKey();
+                chai.expect(fake.callCount).to.equal(1);
             });
         }), describe("AssignNeighbours", function () {
             it('Positiv', function () {
-                const name1 = "Node 1"
-                const name2 = "Node 2"
-                const name3 = "Node 3"
-
-                let c = new Controller();
-                let node = new MVCElement(name1, c)
-                let node2 = new MVCElement(name2, c)
-                let node3 = new MVCElement(name3, c)
-
-                c.addNode(node)
-                c.addNode(node2)
-                c.addNode(node3)
-
-                c.assignNeighbours();
-                const copyControlledNodes = c.controlledNodes;
 
                 let n1 = [];
                 let n2 = [];
                 let n3 = [];
 
-                copyControlledNodes.filter(n => {
-                    return n.name === node.name;
-                }).forEach(node => {
-                    let nodes = node.getFollowingNodes();
-                    n1.push(...nodes);
+                let c = prepareExchange(3)
+
+                c.controlledNodes.forEach(node => {
+                    if (node.id === c.controlledNodes[0].id) {
+                        let nodes = node.getFollowingNodes();
+                        n1.push(...nodes);
+                    } else if(node.id ===c.controlledNodes[1]){
+                        n2.push(...nodes)
+                    }else if(node.id ===c.controlledNodes[2]){
+                        n3.push(...nodes)
+                    }
                 });
 
-                copyControlledNodes.filter(n => {
-                    return n.name === node2.name;
-                }).forEach(node => {
-                    let nodes = node.getFollowingNodes();
-                    n2.push(...nodes);
-                });
-
-                copyControlledNodes.filter(n => {
-                    return n.name === node3.name;
-                }).forEach(node => {
-                    let nodes = node.getFollowingNodes();
-                    n3.push(...nodes);
-                });
-
-                chai.expect(c.controlledNodes).to.contain(node);
-                chai.expect(n1).to.contain(node2)
-                chai.expect(n2).to.contain(node3)
-                chai.expect(n3).to.contain(node)
+                chai.expect(n1).to.contain(c.controlledNodes[1])
+                chai.expect(n2).to.contain(c.controlledNodes[2])
+                chai.expect(n3).to.contain(c.controlledNodes[0])
             });
         })
 
@@ -130,38 +104,20 @@ describe("Add Message", function () {
         const randomTitle = "Random Title"
 
         let c = prepareExchange(2);
+        let fake = sinon.replace(c.controlledNodes[1], "receiveMessagdfe", sinon.fake(c.controlledNodes[0].receiveMessage));
 
-        c.controlledNodes[0].addStorageElementt(randomTitle, buffer)
-        c.controlledNodes[1].receiveMessage = sinon.spy()
+        c.controlledNodes[0].addStorageElement(randomTitle, buffer)
 
+        chai.expect(fake.callCount).to.equal(1);
     });
 });
 
 
 function prepareExchange(count: number): Controller {
     let c = new Controller(false);
-    const name1 = "Node 1"
-    let node = new MVCElement(name1)
 
-
-    switch (count) {
-        case 1:
-            c.addAndGenerateNode(node, false)
-            break
-        case 2:
-            const name2 = "Node 2"
-            let node2 = new MVCElement(name2, c)
-            c.addAndGenerateNode(node, false)
-            c.addAndGenerateNode(node2, false)
-            break
-        case 3:
-            const name3 = "Node 3"
-            let node3 = new MVCElement(name3, c)
-            c.addNode(node)
-            c.addNode(node2)
-            c.addNode(node3)
-            defaut:
-                ;
+    for (let i = 0; i < count; i++) {
+        c.addAndGenerateNode()
     }
 
     c.assignNeighbours();

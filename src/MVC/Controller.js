@@ -11,24 +11,28 @@ const MessageType = {
 export class Controller {
     #privateKey: string
     publicKey: string
+
     controlledNodes: Array<MVCElement>
 
-    constructor() {
+    noCrypto: boolean
+
+    constructor(noCrypto: boolean) {
         const returnKeys = CryptoUtil.GenerateKeys()
-        if (returnKeys.isValid) {
+        if (noCrypto === false) {
             this.#privateKey = returnKeys.privateKey
             this.publicKey = returnKeys.publicKey
         }
 
         this.controlledNodes = []
+        this.noCrypto = noCrypto
     }
 
-    addAndGenerateNode(name: string) {
-        const newNode = new MVCElement(name)
+    addAndGenerateNode() {
+        const newNode = new MVCElement(this.controlledNodes.length, this.noCrypto)
         this.controlledNodes.push(newNode)
     }
 
-    addNode(node:MVCElement) {
+    addNode(node: MVCElement) {
         this.controlledNodes.push(node)
     }
 
@@ -41,13 +45,16 @@ export class Controller {
     assignNeighbours() {
         if (this.controlledNodes.length !== 0 && this.controlledNodes.length !== 1) {
             for (let i = 0; i < this.controlledNodes.length; i++) {
-                const neighbourIndex = (i+1)%(this.controlledNodes.length-1)
+                const neighbourIndex = (i + 1) % (this.controlledNodes.length)
+                if (neighbourIndex !== i) {
                     const signature = CryptoUtil.GenerateSignature(this.controlledNodes[neighbourIndex].getPublicKey(), this.#privateKey)
                     this.controlledNodes[i].setNeighbour(this.controlledNodes[neighbourIndex], signature, this.publicKey)
                 }
 
             }
+
         }
+    }
 
     cast(type: MessageType, message: string, receiver: Array<MVC>, sender: MVCElement, signature) {
 

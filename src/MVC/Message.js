@@ -15,13 +15,14 @@ export default class Message {
         this.content=content
     }
 
-    getQueueRepresentation():string{
-        let enc = new TextEncoder()
-        return this.title + enc.encode(this.content)
+    static GetQueueRepresentation(title:string, content:ArrayBuffer):string{
+        let dec = new TextDecoder()
+        return this.title + dec.decode(this.content)
     }
 
     toString(): string {
-        return this.id + separator + this.title + separator + this.content
+        let dec = new TextDecoder()
+        return this.id + separator + this.title + separator + dec.decode(this.content)
     }
 
     parseString(input: string): void {
